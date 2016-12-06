@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single"
+        android:id="@+id/group1">
+        <item
+            android:id="@+id/navigation_maps"
+            android:checked="true"
+            android:title="Map"/>
+        <item
+            android:id="@+id/navigation_watch_list"
+            android:checked="false"
+            android:title="WatchList"/>
+        </group>
+
+    <group android:checkableBehavior="single"
+        android:id="@+id/group3">
+                <item
+                    android:id="@+id/navigation_promotions"
+                    android:checked="false"
+                    android:title="Promotions"/>
+                <item
+                    android:id="@+id/navigation_refer"
+                    android:title="Refer a friend :-D"/>
+    </group>
+
+    <group android:checkableBehavior="single"
+        android:id="@+id/group2">
+        <item
+            android:id="@+id/navigation_about"
+            android:title="About"/>
+    </group>
+
+</menu>
