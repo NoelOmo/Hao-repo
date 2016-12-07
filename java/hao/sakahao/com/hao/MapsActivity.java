@@ -6,6 +6,8 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -45,7 +47,6 @@ import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -57,15 +58,14 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 
 public class MapsActivity extends AppCompatActivity
@@ -94,7 +94,9 @@ public class MapsActivity extends AppCompatActivity
     TextView txtHaoLocal, txtHaoTitle;
     BottomSheetBehavior bottomSheetBehavior;
     HashMap <String, String> mMarkers = new HashMap<String, String>();
-    Iterator<String> iterator = mMarkers.keySet().iterator();
+
+    SQLiteDatabase haoDb;
+
 
 
     @Override
@@ -109,6 +111,9 @@ public class MapsActivity extends AppCompatActivity
        bottomSheetBehavior =
                 BottomSheetBehavior.from(bottomSheetViewgroup);
         bottomSheetBehavior.setState(BottomSheetBehavior.STATE_COLLAPSED);
+        haoDb = openOrCreateDatabase("haosDb", MODE_PRIVATE, null);
+
+        haoDb.execSQL("CREATE TABLE IF NOT EXISTS tbl_HaoMarkers(title VARCHAR,description VARCHAR);");
 
         mCoordinatorLayout = (CoordinatorLayout) findViewById(R.id.coordinatorLayout);
         navigation = (NavigationView) findViewById(R.id.navView);
@@ -194,33 +199,69 @@ public class MapsActivity extends AppCompatActivity
 
         ChildEventListener childEventListener = new ChildEventListener() {
             @Override
-            public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
+            public void onChildAdded(final DataSnapshot dataSnapshot, String previousChildName) {
                 final HaoRetrieve haoRetriever = dataSnapshot.getValue(HaoRetrieve.class);
 
+                for (DataSnapshot child : dataSnapshot.getChildren()){
 
-
-                for ( DataSnapshot child : dataSnapshot.getChildren()){
 
                     Double dLat = haoRetriever.getLat();
                     Double dLong = haoRetriever.getLongitude();
                     bsHaoName = haoRetriever.getName();
 
-                   Marker marker = mMap.addMarker(new MarkerOptions().position(new LatLng(dLat, dLong))
-                            .title(bsHaoName).icon(BitmapDescriptorFactory.fromResource(R.drawable.map_pin)));
+                   Marker marker = mMap.addMarker(
+                           new MarkerOptions()
+                                   .position(new LatLng(dLat, dLong))
+                                   .title(bsHaoName)
+                                   .icon(BitmapDescriptorFactory.fromResource(R.drawable.map_pin)));
 
                     mMarkers.put("MakerId", marker.getId());
                     mMarkers.put("MarkerTitle", haoRetriever.getName());
                     mMarkers.put("MarkerDescription", haoRetriever.getDescription());
                     mMarkers.put("MarkerLocation", haoRetriever.getLocation());
+
+                    haoDb.execSQL("INSERT INTO tbl_HaoMarkers(title, description) VALUES('" + haoRetriever.getName() + "', '" + haoRetriever.getDescription() + "')");
+
+
+
                 }
 
+                mMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                    @Override
+                    public boolean onMarkerClick(Marker m) {
+
+                        String query = "SELECT * FROM tbl_HaoMarkers WHERE title ='" + m.getTitle()+"'" ;
+                        Cursor cursor = haoDb.rawQuery(query,null);
+                        if (cursor.moveToFirst()) {
+                            while (cursor.isAfterLast() != true) {
+                                txtHaoTitle.setText(cursor.getString(cursor.getColumnIndex("title")));
+                            }
+                        }
+                        cursor.close();
+
+
+                        for (String keys : mMarkers.keySet()) {
+                            Toast.makeText(getApplicationContext(), mMarkers.get("MakerId") + " Current id " + m.getId() + " Size: " + mMarkers.size(), Toast.LENGTH_SHORT).show();
+                            if (m.getId() == mMarkers.get("MakerId")) {
+                                txtHaoTitle.setText(mMarkers.get("MarkerTitle"));
+                                txtHaoLocal.setText(mMarkers.get("MarkerLocation"));
+                                bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+                            }
+                        }
+
+                        return false;
+
+                    }
+                });
+
                 mMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+
+
+
                     @Override
                     public void onInfoWindowClick(Marker m) {
-                        if(mMarkers.get("MakerId").equals(m.getId()))
-                            txtHaoTitle.setText(mMarkers.get("MarkerTitle"));
-                        txtHaoLocal.setText(mMarkers.get("MarkerLocation"));
-                        bottomSheetBehavior.setState(BottomSheetBehavior.STATE_EXPANDED);
+
+
                     }
                 });
 
